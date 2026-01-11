@@ -23,6 +23,7 @@ interface ContactListProps {
   };
   onFilterChange: (filters: Record<string, string>) => void;
   onPageChange: (page: number) => void;
+  hideHeader?: boolean;
 }
 
 const statusColors: Record<string, "default" | "secondary" | "success" | "warning" | "destructive"> = {
@@ -57,24 +58,27 @@ export function ContactList({
   filters,
   onFilterChange,
   onPageChange,
+  hideHeader = false,
 }: ContactListProps) {
   const router = useRouter();
 
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Contacts</h1>
-          <p className="text-gray-500">{total} total contacts</p>
+      {!hideHeader && (
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">Contacts</h1>
+            <p className="text-gray-500">{total} total contacts</p>
+          </div>
+          <Link href="/contacts/new">
+            <Button>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Contact
+            </Button>
+          </Link>
         </div>
-        <Link href="/contacts/new">
-          <Button>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Contact
-          </Button>
-        </Link>
-      </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-4 flex-wrap">
