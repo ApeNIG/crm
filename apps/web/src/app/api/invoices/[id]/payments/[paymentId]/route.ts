@@ -68,27 +68,28 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    // Create activities
-    const activities = [
-      {
+    // Create payment deleted activity
+    await db.invoiceActivity.create({
+      data: {
         invoiceId: id,
-        type: "PAYMENT_DELETED" as const,
+        type: "PAYMENT_DELETED",
         payload: {
           amount: paymentAmount.toString(),
           method: payment.method,
         },
       },
-    ];
+    });
 
+    // Create status change activity if status changed
     if (newStatus !== previousStatus) {
-      activities.push({
-        invoiceId: id,
-        type: "INVOICE_STATUS_CHANGED" as const,
-        payload: { from: previousStatus, to: newStatus },
+      await db.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: "INVOICE_STATUS_CHANGED",
+          payload: { from: previousStatus, to: newStatus },
+        },
       });
     }
-
-    await db.invoiceActivity.createMany({ data: activities });
 
     return NextResponse.json({ success: true });
   } catch (error) {
