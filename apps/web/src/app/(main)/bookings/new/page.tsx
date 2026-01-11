@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -12,7 +13,7 @@ import { useEnquiries } from "@/hooks/useEnquiries";
 import { DROPDOWN_DEFAULT_LIMIT } from "@/lib/constants";
 import type { CreateBookingInput } from "@/lib/validations/booking";
 
-export default function NewBookingPage() {
+function NewBookingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -76,5 +77,13 @@ export default function NewBookingPage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function NewBookingPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-foreground-muted">Loading...</div></div>}>
+      <NewBookingContent />
+    </Suspense>
   );
 }

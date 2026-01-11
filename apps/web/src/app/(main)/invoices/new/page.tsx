@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -24,7 +25,7 @@ async function fetchBookings(): Promise<{
   return res.json();
 }
 
-export default function NewInvoicePage() {
+function NewInvoiceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const defaultContactId = searchParams.get("contactId") || undefined;
@@ -79,5 +80,13 @@ export default function NewInvoicePage() {
         />
       </div>
     </div>
+  );
+}
+
+export default function NewInvoicePage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-64"><div className="text-foreground-muted">Loading...</div></div>}>
+      <NewInvoiceContent />
+    </Suspense>
   );
 }
