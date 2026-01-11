@@ -96,7 +96,7 @@ function getActivityDescription(
       return `Line item deleted: ${payload.description}`;
 
     default:
-      return type.replace(/_/g, " ").toLowerCase();
+      return (type as string).replace(/_/g, " ").toLowerCase();
   }
 }
 

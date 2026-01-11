@@ -55,6 +55,7 @@ export function LineItemForm({
       description: formData.description,
       quantity: parseFloat(formData.quantity),
       unitPrice: parseFloat(formData.unitPrice),
+      sortOrder: 0,
     };
 
     try {

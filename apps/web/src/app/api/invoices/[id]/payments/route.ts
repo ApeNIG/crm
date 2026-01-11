@@ -76,28 +76,29 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       },
     });
 
-    // Create activities
-    const activities = [
-      {
+    // Create payment recorded activity
+    await db.invoiceActivity.create({
+      data: {
         invoiceId: id,
-        type: "PAYMENT_RECORDED" as const,
+        type: "PAYMENT_RECORDED",
         payload: {
           amount: data.amount.toString(),
           method: data.method,
           reference: data.reference,
         },
       },
-    ];
+    });
 
+    // Create status change activity if status changed
     if (newStatus !== previousStatus) {
-      activities.push({
-        invoiceId: id,
-        type: "INVOICE_STATUS_CHANGED" as const,
-        payload: { from: previousStatus, to: newStatus },
+      await db.invoiceActivity.create({
+        data: {
+          invoiceId: id,
+          type: "INVOICE_STATUS_CHANGED",
+          payload: { from: previousStatus, to: newStatus },
+        },
       });
     }
-
-    await db.invoiceActivity.createMany({ data: activities });
 
     return NextResponse.json(payment, { status: 201 });
   } catch (error) {
