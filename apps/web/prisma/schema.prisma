@@ -1,0 +1,429 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// AUTHENTICATION MODELS
+// ============================================
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String
+  role          UserRole  @default(USER)
+  isActive      Boolean   @default(true) @map("is_active")
+  lastLoginAt   DateTime? @map("last_login_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  userAgent String?  @map("user_agent")
+  ipAddress String?  @map("ip_address")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+// ============================================
+// CONTACT DATABASE MODELS
+// ============================================
+
+model Contact {
+  id               String        @id @default(uuid())
+  firstName        String        @map("first_name")
+  lastName         String        @map("last_name")
+  email            String        @unique
+  phone            String?
+  source           ContactSource @default(OTHER)
+  status           ContactStatus @default(LEAD)
+  ownerUserId      String?       @map("owner_user_id")
+  marketingOptIn   Boolean       @default(false) @map("marketing_opt_in")
+  marketingOptInAt DateTime?     @map("marketing_opt_in_at")
+  emailStatus      EmailStatus   @default(VALID) @map("email_status")
+  notes            String?
+  deletedAt        DateTime?     @map("deleted_at")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+
+  tags       ContactTag[]
+  activities Activity[]
+  enquiries  Enquiry[]
+  bookings   Booking[]
+  invoices   Invoice[]
+
+  @@map("contacts")
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  color     String   @default("#6B7280")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  contacts ContactTag[]
+
+  @@map("tags")
+}
+
+model ContactTag {
+  contactId String   @map("contact_id")
+  tagId     String   @map("tag_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+  @@map("contact_tags")
+}
+
+model Activity {
+  id          String       @id @default(uuid())
+  contactId   String       @map("contact_id")
+  type        ActivityType
+  payload     Json         @default("{}")
+  actorUserId String?      @map("actor_user_id")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@map("activities")
+}
+
+// ============================================
+// ENQUIRY PIPELINE MODELS
+// ============================================
+
+model Enquiry {
+  id             String       @id @default(uuid())
+  contactId      String       @map("contact_id")
+  enquiryType    EnquiryType  @default(GENERAL) @map("enquiry_type")
+  message        String?
+  preferredDate  DateTime?    @map("preferred_date")
+  preferredTime  String?      @map("preferred_time")
+  estimatedValue Float?       @map("estimated_value")
+  stage          EnquiryStage @default(NEW)
+  nextActionAt   DateTime?    @map("next_action_at")
+  sourceUrl      String?      @map("source_url")
+  deletedAt      DateTime?    @map("deleted_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  contact    Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  activities EnquiryActivity[]
+  bookings   Booking[]
+
+  @@index([contactId])
+  @@index([stage])
+  @@map("enquiries")
+}
+
+model EnquiryActivity {
+  id          String              @id @default(uuid())
+  enquiryId   String              @map("enquiry_id")
+  type        EnquiryActivityType
+  payload     Json                @default("{}")
+  actorUserId String?             @map("actor_user_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  enquiry Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  @@index([enquiryId])
+  @@map("enquiry_activities")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum ContactSource {
+  INSTAGRAM
+  WEBSITE
+  REFERRAL
+  WALK_IN
+  OTHER
+}
+
+enum ContactStatus {
+  LEAD
+  CUSTOMER
+  PAST_CUSTOMER
+  COLD
+  DO_NOT_CONTACT
+}
+
+enum EmailStatus {
+  VALID
+  BOUNCED
+  COMPLAINED
+}
+
+enum ActivityType {
+  CONTACT_CREATED
+  CONTACT_UPDATED
+  NOTE_ADDED
+  TAG_ADDED
+  TAG_REMOVED
+}
+
+enum EnquiryStage {
+  NEW
+  AUTO_RESPONDED
+  CONTACTED
+  QUALIFIED
+  PROPOSAL_SENT
+  BOOKED_PAID
+  LOST
+}
+
+enum EnquiryType {
+  GENERAL
+  SERVICE
+  PRODUCT
+  PARTNERSHIP
+}
+
+enum EnquiryActivityType {
+  ENQUIRY_CREATED
+  ENQUIRY_UPDATED
+  STAGE_CHANGED
+  NOTE_ADDED
+}
+
+// ============================================
+// BOOKING / APPOINTMENT ENUMS
+// ============================================
+
+enum BookingStatus {
+  REQUESTED
+  PENDING_DEPOSIT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  RESCHEDULED
+}
+
+enum BookingActivityType {
+  BOOKING_CREATED
+  BOOKING_UPDATED
+  BOOKING_STATUS_CHANGED
+  BOOKING_RESCHEDULED
+  BOOKING_NOTE_ADDED
+}
+
+// ============================================
+// BOOKING / APPOINTMENT MODELS
+// ============================================
+
+model ServiceType {
+  id              String    @id @default(uuid())
+  name            String
+  description     String?
+  durationMinutes Int       @default(60) @map("duration_minutes")
+  price           Decimal?  @db.Decimal(10, 2)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  bookings Booking[]
+
+  @@map("service_types")
+}
+
+model Booking {
+  id            String        @id @default(uuid())
+  contactId     String        @map("contact_id")
+  enquiryId     String?       @map("enquiry_id")
+  serviceTypeId String        @map("service_type_id")
+  startAt       DateTime      @map("start_at") @db.Timestamptz
+  endAt         DateTime      @map("end_at") @db.Timestamptz
+  status        BookingStatus @default(REQUESTED)
+  location      String?
+  virtualLink   String?       @map("virtual_link")
+  notes         String?
+  depositPaid   Boolean       @default(false) @map("deposit_paid")
+  depositPaidAt DateTime?     @map("deposit_paid_at")
+  deletedAt     DateTime?     @map("deleted_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  contact     Contact          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  enquiry     Enquiry?         @relation(fields: [enquiryId], references: [id], onDelete: SetNull)
+  serviceType ServiceType      @relation(fields: [serviceTypeId], references: [id])
+  activities  BookingActivity[]
+  invoices    Invoice[]
+
+  @@index([contactId])
+  @@index([enquiryId])
+  @@index([serviceTypeId])
+  @@index([startAt])
+  @@index([status])
+  @@map("bookings")
+}
+
+model BookingActivity {
+  id          String              @id @default(uuid())
+  bookingId   String              @map("booking_id")
+  type        BookingActivityType
+  payload     Json                @default("{}")
+  actorUserId String?             @map("actor_user_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  @@index([bookingId])
+  @@map("booking_activities")
+}
+
+// ============================================
+// INVOICING ENUMS
+// ============================================
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  OVERDUE
+  CANCELLED
+  PARTIALLY_PAID
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  STRIPE
+  OTHER
+}
+
+enum InvoiceActivityType {
+  INVOICE_CREATED
+  INVOICE_UPDATED
+  INVOICE_STATUS_CHANGED
+  INVOICE_SENT
+  PAYMENT_RECORDED
+  PAYMENT_DELETED
+  LINE_ITEM_ADDED
+  LINE_ITEM_UPDATED
+  LINE_ITEM_DELETED
+}
+
+// ============================================
+// INVOICE MODELS
+// ============================================
+
+model Invoice {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique @map("invoice_number")
+  contactId     String        @map("contact_id")
+  bookingId     String?       @map("booking_id")
+  status        InvoiceStatus @default(DRAFT)
+  issueDate     DateTime      @default(now()) @map("issue_date")
+  dueDate       DateTime      @map("due_date")
+  subtotal      Decimal       @default(0) @db.Decimal(10, 2)
+  taxRate       Decimal       @default(0) @map("tax_rate") @db.Decimal(5, 2)
+  taxAmount     Decimal       @default(0) @map("tax_amount") @db.Decimal(10, 2)
+  total         Decimal       @default(0) @db.Decimal(10, 2)
+  amountPaid    Decimal       @default(0) @map("amount_paid") @db.Decimal(10, 2)
+  amountDue     Decimal       @default(0) @map("amount_due") @db.Decimal(10, 2)
+  notes         String?
+  terms         String?
+  deletedAt     DateTime?     @map("deleted_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
+
+  contact    Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  booking    Booking?          @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  lineItems  InvoiceLineItem[]
+  payments   Payment[]
+  activities InvoiceActivity[]
+
+  @@index([contactId])
+  @@index([bookingId])
+  @@index([status])
+  @@index([invoiceNumber])
+  @@index([issueDate])
+  @@index([dueDate])
+  @@map("invoices")
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(uuid())
+  invoiceId   String   @map("invoice_id")
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  sortOrder   Int      @default(0) @map("sort_order")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_line_items")
+}
+
+model Payment {
+  id        String        @id @default(uuid())
+  invoiceId String        @map("invoice_id")
+  amount    Decimal       @db.Decimal(10, 2)
+  method    PaymentMethod @default(OTHER)
+  reference String?
+  notes     String?
+  paidAt    DateTime      @default(now()) @map("paid_at")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@index([paidAt])
+  @@map("payments")
+}
+
+model InvoiceActivity {
+  id          String              @id @default(uuid())
+  invoiceId   String              @map("invoice_id")
+  type        InvoiceActivityType
+  payload     Json                @default("{}")
+  actorUserId String?             @map("actor_user_id")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+  @@map("invoice_activities")
+}
+
+model InvoiceCounter {
+  id         String   @id @default(uuid())
+  year       Int      @unique
+  lastNumber Int      @default(0) @map("last_number")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@map("invoice_counters")
+}
